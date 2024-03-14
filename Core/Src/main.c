@@ -27,10 +27,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "led.h"
-#include "ucan.h"
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define BUFFER_SIZE 10
+#include "common.h"
+extern uint8_t spi_tx[BUFFER_SIZE], spi_rx[BUFFER_SIZE];
+
+uint8_t err = HAL_OK;
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,7 +52,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t spi_rx[BUFFER_SIZE], spi_tx[BUFFER_SIZE];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,26 +63,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi) {
-  // CAN_LIM = 8
-  // UART_LIM = 255
-  // SPI_LIM = 257
-
-  uint8_t len = spi_rx[1];
-
-  if(spi_rx[0] == 0) {
-    uint8_t can_tx[8] = {0};
-    for(int i = 0; i < min(len, 8); i++) can_tx[i] = spi_rx[i+2];
-    CanSend(can_tx);
-  }
-
-  if(spi_rx[0] == 1) {
-    HAL_UART_Transmit(&huart3, spi_rx+2, len, 0xffff);
-  }
-//  HAL_SPI_DMAResume(hspi);
-//  HAL_SPI_Receive_DMA(hspi, spi_rx, BUFFER_LIMIT+1);
-}
 
 /* USER CODE END 0 */
 
@@ -120,9 +101,14 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   ledInit(&htim2);
-  ledSet(10, 10, 20);
+  ledSet(20, 20, 40);
   CanInit(&hcan);
-  HAL_SPI_Receive_DMA(&hspi2, spi_rx, BUFFER_SIZE);
+
+//  if((err = HAL_SPI_TransmitReceive_DMA(&hspi2, spi_tx, spi_rx, BUFFER_SIZE)) != HAL_OK) {
+//    char fmt[50]; sprintf(fmt, "dma error(%d)\r\n", err);
+//    HAL_UART_Transmit(&huart3, (uint8_t *)fmt, strlen(fmt), 0xffff);
+//  }
+  HAL_SPI_TransmitReceive_DMA(&hspi2, spi_tx, spi_rx, BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */

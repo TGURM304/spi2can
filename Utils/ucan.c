@@ -3,6 +3,7 @@
 //
 
 #include "ucan.h"
+#include "common.h"
 
 void CanInit(CAN_HandleTypeDef *h) {
   CAN_FilterTypeDef can_filter_st;
@@ -21,12 +22,42 @@ void CanInit(CAN_HandleTypeDef *h) {
   HAL_CAN_ActivateNotification(h, CAN_IT_RX_FIFO0_MSG_PENDING);
 }
 
-void CanSend(uint8_t *data) {
+void CanSend(uint8_t *data, uint8_t StdId) {
   CAN_TxHeaderTypeDef can_tx_message;
   uint32_t send_mail_box;
-  can_tx_message.StdId = 0x013;
+  can_tx_message.StdId = StdId;
   can_tx_message.IDE = CAN_ID_STD;
   can_tx_message.RTR = CAN_RTR_DATA;
   can_tx_message.DLC = 0x08;
   HAL_CAN_AddTxMessage(&hcan, &can_tx_message, data, &send_mail_box);
+}
+
+uint8_t can_rx[8], can_fl;
+extern uint8_t spi_tx[BUFFER_SIZE], spi_tx_tmp[BUFFER_SIZE];
+
+uint8_t GetStartPos(uint8_t StdId) {
+  switch(StdId) {
+    case 0x01:
+      return 0;
+    case 0x02:
+      return 8;
+    case 0x03:
+      return 16;
+    case 0x04:
+      return 24;
+    case 0x05:
+      return 32;
+    case 0x06:
+      return 40;
+    default:
+      return 50;
+  }
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *h) {
+  CAN_RxHeaderTypeDef rh;
+  HAL_CAN_GetRxMessage(h, CAN_RX_FIFO0, &rh, can_rx);
+  uint8_t st = GetStartPos(rh.StdId);
+  for(int i = 0; i < 8; i++) spi_tx_tmp[st+i] = can_rx[i];
+  spi_tx_tmp[BUFFER_SIZE - 1] = 1;
 }
